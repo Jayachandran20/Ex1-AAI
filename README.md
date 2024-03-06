@@ -1,11 +1,12 @@
-<H3> Name : M.JAYACHANDRAN</H3>
-<H3>Register No.212222240038</H3>
+<H3> Name: M.JAYACHANDRAN </H3>
+<H3>Register No: 212222240038</H3>
 <H3> Experiment 1</H3>
-<H3>DATE:</H3>
+<H3>DATE:22-02-24</H3>
 <H1 ALIGN=CENTER> Implementation of Bayesian Networks</H1>
 
 ## Aim :
-To create a bayesian Network for the given dataset in Python
+<p>To create a bayesian Network for the given dataset in Python</p>
+
 ## Algorithm:
 Step 1:Import necessary libraries: pandas, networkx, matplotlib.pyplot, Bbn, Edge, EdgeType, BbnNode, Variable, EvidenceBuilder, InferenceController<br/>
 Step 2:Set pandas options to display more columns<br/>
@@ -23,37 +24,39 @@ Step 13:Generate the graph using networkx<br/>
 Step 14:Update margins and display the graph using matplotlib.pyplot<br/>
 
 ## Program:
-#### Import the needed Libaries:
 ```
-import networkx as nx
-import pandas as pd
-import matplotlib.pyplot as plt
+import pandas as pd # for data manipulation
+import networkx as nx # for drawing graphs
+import matplotlib.pyplot as plt # for drawing graphs
+# for creating Bayesian Belief Networks (BBN)
 from pybbn.graph.dag import Bbn
-from pybbn.graph.dag import Edge,EdgeType
+from pybbn.graph.edge import Edge, EdgeType
 from pybbn.graph.jointree import EvidenceBuilder
 from pybbn.graph.node import BbnNode
 from pybbn.graph.variable import Variable
 from pybbn.pptc.inferencecontroller import InferenceController
+#Set Pandas options to display more columns
 pd.options.display.max_columns=50
-```
-#### Read the Dataset:
-```
-df=pd.read_csv('weatherAUS.csv',encoding='utf-8')
+
+# Read in the weather data csv
+df=pd.read_csv('weatherAUS.csv', encoding='utf-8')
+
+# Drop records where target RainTomorrow=NaN
 df=df[pd.isnull(df['RainTomorrow'])==False]
-```
-#### Filling in missing values:
-```
+
+# For other columns with missing values, fill them in with column mean
 df=df.fillna(df.mean())
-```
-#### Bands for variables:
-```
-df['WindGustSpeedCat']=df['WindGustSpeed'].apply(lambda x: '0.<=40'   if x<=40 else '1.40-50' if 40<x<=50 else '2.>50')
-df['Pressure9amCat']=df['Pressure9am'].apply(lambda x: '1.>1000' if x>1000 else '0.<=1000')
-df['Pressure3pmCat']=df['Pressure3pm'].apply(lambda x: '1.>1000' if x>1000 else '0.<=1000')
+
+# Create bands for variables that we want to use in the model
+df['WindGustSpeedCat']=df['WindGustSpeed'].apply(lambda x: '0.<=40'   if x<=40 else
+                                                            '1.40-50' if 40<x<=50 else '2.>50')
+df['Humidity9amCat']=df['Humidity9am'].apply(lambda x: '1.>60' if x>60 else '0.<=60')
+df['Humidity3pmCat']=df['Humidity3pm'].apply(lambda x: '1.>60' if x>60 else '0.<=60')
+
+# Show a snaphsot of data
 print(df)
-```
-#### Function helps to calculate probability distribution:
-```
+
+# This function helps to calculate probability distribution, which goes into BBN (note, can handle up to 2 parents)
 def probs(data, child, parent1=None, parent2=None):
     if parent1==None:
         # Calculate probabilities
@@ -68,68 +71,57 @@ def probs(data, child, parent1=None, parent2=None):
                 prob=pd.crosstab([data[parent1],data[parent2]],data[child], margins=False, normalize='index').sort_index().to_numpy().reshape(-1).tolist()
     else: print("Error in Probability Frequency Calculations")
     return prob
-```
-#### Function to Automatically Calculate Probabilities:
-```
-P9am = BbnNode(Variable(0, 'P9am', ['<=1000', '>1000']), probs(df, child='Pressure9amCat'))
-P3pm = BbnNode(Variable(1, 'P3pm', ['<=1000', '>1000']), probs(df, child='Pressure3pmCat', parent1='Pressure9amCat'))
+# Create nodes by using our earlier function to automatically calculate probabilities
+H9am = BbnNode(Variable(0, 'H9am', ['<=60', '>60']), probs(df, child='Humidity9amCat'))
+H3pm = BbnNode(Variable(1, 'H3pm', ['<=60', '>60']), probs(df, child='Humidity3pmCat', parent1='Humidity9amCat'))
 W = BbnNode(Variable(2, 'W', ['<=40', '40-50', '>50']), probs(df, child='WindGustSpeedCat'))
-RT = BbnNode(Variable(3, 'RT', ['No', 'Yes']), probs(df, child='RainTomorrow', parent1='Pressure3pmCat', parent2='WindGustSpeedCat'))
-```
-#### Network:
-```
+RT = BbnNode(Variable(3, 'RT', ['No', 'Yes']), probs(df, child='RainTomorrow', parent1='Humidity3pmCat', parent2='WindGustSpeedCat'))
+
+# Create Network
 bbn = Bbn() \
-    .add_node(P9am) \
-    .add_node(P3pm) \
+    .add_node(H9am) \
+    .add_node(H3pm) \
     .add_node(W) \
     .add_node(RT) \
-    .add_edge(Edge(P9am, P3pm, EdgeType.DIRECTED)) \
-    .add_edge(Edge(P3pm, RT, EdgeType.DIRECTED)) \
+    .add_edge(Edge(H9am, H3pm, EdgeType.DIRECTED)) \
+    .add_edge(Edge(H3pm, RT, EdgeType.DIRECTED)) \
     .add_edge(Edge(W, RT, EdgeType.DIRECTED))
-```
-#### BBN to Join tree:
-```
+
+# Convert the BBN to a join tree
 join_tree = InferenceController.apply(bbn)
-```
-#### Setting node Positions:
-```
-pos={0: (-1,2), 1: (-1,0.5), 2: (1,0.5), 3:(0,-1)}
-```
-#### Setting Options for Graph looks:
-```
+# Set node positions
+pos = {0: (-1, 2), 1: (-1, 0.5), 2: (1, 0.5), 3: (0, -1)}
+
+# Set options for graph looks
 options = {
     "font_size": 16,
-    "node_size": 5000,
-    "node_color": "#82DEFF",
-    "edgecolors": "#82A0FF",
-    "edge_color": "black",
+    "node_size": 4000,
+    "node_color": "white",
+    "edgecolors": "black",
+    "edge_color": "red",
     "linewidths": 5,
     "width": 5,}
 
-```
-#### Graph Generation:
-```
+# Generate graph
 n, d = bbn.to_nx_graph()
 nx.draw(n, with_labels=True, labels=d, pos=pos, **options)
 
-```
-#### Margin and printing Graph:
-```
+# Update margins and print the graph
 ax = plt.gca()
 ax.margins(0.10)
 plt.axis("off")
 plt.show()
 ```
+
 ## Output:
-#### Bands for variables:
-![image](https://github.com/shalini-venkatesan/Ex1-AAI/assets/118720291/900e6160-3859-4dc8-8675-0a4b8faa80df)
+![Screenshot (303)](https://github.com/Jaiganesh235/Ex1-AAI/assets/118657189/ad6427e0-316a-4b8f-b54b-c9d7de1edf29)
+![Screenshot (304)](https://github.com/Jaiganesh235/Ex1-AAI/assets/118657189/21590911-c04b-4c9e-a38f-2e8fa7a00e14)
+![Screenshot (305)](https://github.com/Jaiganesh235/Ex1-AAI/assets/118657189/a38ff180-bcf3-40f2-83a1-463ef70dcf96)
+![Screenshot (306)](https://github.com/Jaiganesh235/Ex1-AAI/assets/118657189/60ab7915-bd52-430a-9a9b-93820d3e0fe1)
 
-![image](https://github.com/shalini-venkatesan/Ex1-AAI/assets/118720291/323ea7fc-bfa5-46b7-863e-0e822d8a6c00)
 
-#### Graph:
 
-![image](https://github.com/shalini-venkatesan/Ex1-AAI/assets/118720291/49c58799-e7e2-4987-bf0b-c390ee5249dd)
 
 ## Result:
-Thus a Bayesian Network is generated using Python
+   Thus a Bayesian Network is generated using Python
 
